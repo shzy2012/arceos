@@ -205,7 +205,7 @@ pub trait BufRead: Read {
             let (done, used) = {
                 let available = match self.fill_buf() {
                     Ok(n) => n,
-                    Err(Error::Again) => continue,
+                    Err(Error::WouldBlock) => continue,
                     Err(e) => return Err(e),
                 };
                 match available.iter().position(|&b| b == byte) {
@@ -248,4 +248,13 @@ where
     } else {
         Ok(ret)
     }
+}
+
+/// I/O poll results.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct PollState {
+    /// Object can be read now.
+    pub readable: bool,
+    /// Object can be writen now.
+    pub writable: bool,
 }

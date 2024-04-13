@@ -1,20 +1,20 @@
-const fn align_up(val: usize) -> usize {
-    const PAGE_SIZE: usize = 0x1000;
-    (val + PAGE_SIZE - 1) & !(PAGE_SIZE - 1)
+const fn align_up_64(val: usize) -> usize {
+    const SIZE_64BIT: usize = 0x40;
+    (val + SIZE_64BIT - 1) & !(SIZE_64BIT - 1)
 }
 
 #[cfg(not(target_os = "none"))]
 static PERCPU_AREA_BASE: spin::once::Once<usize> = spin::once::Once::new();
 
-/// Returns the per-CPU data area size for each CPUs.
+/// Returns the per-CPU data area size for one CPU.
 #[doc(cfg(not(feature = "sp-naive")))]
 pub fn percpu_area_size() -> usize {
     extern "C" {
-        fn __percpu_offset_start();
-        fn __percpu_offset_end();
+        fn _percpu_load_start();
+        fn _percpu_load_end();
     }
     use percpu_macros::percpu_symbol_offset;
-    percpu_symbol_offset!(__percpu_offset_end) - percpu_symbol_offset!(__percpu_offset_start)
+    percpu_symbol_offset!(_percpu_load_end) - percpu_symbol_offset!(_percpu_load_start)
 }
 
 /// Returns the base address of the per-CPU data area on the given CPU.
@@ -25,14 +25,14 @@ pub fn percpu_area_base(cpu_id: usize) -> usize {
     cfg_if::cfg_if! {
         if #[cfg(target_os = "none")] {
             extern "C" {
-                fn percpu_start();
+                fn _percpu_start();
             }
-            let base = percpu_start as usize;
+            let base = _percpu_start as usize;
         } else {
             let base = *PERCPU_AREA_BASE.get().unwrap();
         }
     }
-    base + cpu_id * align_up(percpu_area_size())
+    base + cpu_id * align_up_64(percpu_area_size())
 }
 
 /// Initialize the per-CPU data area for `max_cpu_num` CPUs.
@@ -42,7 +42,7 @@ pub fn init(max_cpu_num: usize) {
     #[cfg(target_os = "linux")]
     {
         // we not load the percpu section in ELF, allocate them here.
-        let total_size = align_up(size) * max_cpu_num;
+        let total_size = align_up_64(size) * max_cpu_num;
         let layout = std::alloc::Layout::from_size_align(total_size, 0x1000).unwrap();
         PERCPU_AREA_BASE.call_once(|| unsafe { std::alloc::alloc(layout) as usize });
     }
@@ -71,7 +71,7 @@ pub fn get_local_thread_pointer() -> usize {
                     unimplemented!()
                 };
             } else if #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))] {
-                core::arch::asm!("mv {}, tp", out(reg) tp)
+                core::arch::asm!("mv {}, gp", out(reg) tp)
             } else if #[cfg(target_arch = "aarch64")] {
                 core::arch::asm!("mrs {}, TPIDR_EL1", out(reg) tp)
             }
@@ -105,7 +105,7 @@ pub fn set_local_thread_pointer(cpu_id: usize) {
                 }
                 SELF_PTR.write_current_raw(tp);
             } else if #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))] {
-                core::arch::asm!("mv tp, {}", in(reg) tp)
+                core::arch::asm!("mv gp, {}", in(reg) tp)
             } else if #[cfg(target_arch = "aarch64")] {
                 core::arch::asm!("msr TPIDR_EL1, {}", in(reg) tp)
             }

@@ -2,11 +2,17 @@ use std::io::Result;
 
 fn main() {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    gen_linker_script(&arch).unwrap();
+    let platform = axconfig::PLATFORM;
+    if platform != "dummy" {
+        gen_linker_script(&arch, platform).unwrap();
+    }
+
+    println!("cargo:rustc-cfg=platform=\"{}\"", platform);
+    println!("cargo:rustc-cfg=platform_family=\"{}\"", axconfig::FAMILY);
 }
 
-fn gen_linker_script(arch: &str) -> Result<()> {
-    let fname = format!("linker_{}.lds", arch);
+fn gen_linker_script(arch: &str, platform: &str) -> Result<()> {
+    let fname = format!("linker_{}.lds", platform);
     let output_arch = if arch == "x86_64" {
         "i386:x86-64"
     } else if arch.contains("riscv") {

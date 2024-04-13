@@ -26,6 +26,19 @@ unsafe impl<'a> Send for DirWrapper<'a> {}
 unsafe impl<'a> Sync for DirWrapper<'a> {}
 
 impl FatFileSystem {
+    #[cfg(feature = "use-ramdisk")]
+    pub fn new(mut disk: Disk) -> Self {
+        let opts = fatfs::FormatVolumeOptions::new();
+        fatfs::format_volume(&mut disk, opts).expect("failed to format volume");
+        let inner = fatfs::FileSystem::new(disk, fatfs::FsOptions::new())
+            .expect("failed to initialize FAT filesystem");
+        Self {
+            inner,
+            root_dir: UnsafeCell::new(None),
+        }
+    }
+
+    #[cfg(not(feature = "use-ramdisk"))]
     pub fn new(disk: Disk) -> Self {
         let inner = fatfs::FileSystem::new(disk, fatfs::FsOptions::new())
             .expect("failed to initialize FAT filesystem");
@@ -170,6 +183,18 @@ impl VfsNodeOps for DirWrapper<'static> {
             }
         }
         Ok(dirents.len())
+    }
+
+    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+        // `src_path` and `dst_path` should in the same mounted fs
+        debug!(
+            "rename at fatfs, src_path: {}, dst_path: {}",
+            src_path, dst_path
+        );
+
+        self.0
+            .rename(src_path, &self.0, dst_path)
+            .map_err(as_vfs_err)
     }
 }
 

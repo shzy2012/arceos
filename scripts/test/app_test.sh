@@ -34,7 +34,7 @@ function compare() {
     fi
     IFS=''
     while read -r line; do
-        local matched=$(grep -m1 "$line" < "$actual")
+        local matched=$(grep -m1 -a "$line" < "$actual")
         if [ -z "$matched" ]; then
             MSG="pattern \"${BLOD_C}$line${END_C}\" not matched!"
             unset IFS
@@ -113,11 +113,16 @@ if [ -z "$1" ]; then
         "apps/task/parallel"
         "apps/task/sleep"
         "apps/task/priority"
+        "apps/task/tls"
         "apps/net/httpclient"
         "apps/c/helloworld"
         "apps/c/memtest"
         "apps/c/sqlite3"
         "apps/c/httpclient"
+        "apps/c/pthread/basic"
+        "apps/c/pthread/sleep"
+        "apps/c/pthread/pipe"
+        "apps/c/pthread/parallel"
     )
 else
     test_list="$@"

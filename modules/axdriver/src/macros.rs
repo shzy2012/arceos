@@ -31,6 +31,7 @@ macro_rules! for_each_drivers {
         #[allow(unused_imports)]
         use crate::drivers::DriverProbe;
         #[cfg(feature = "virtio")]
+        #[allow(unused_imports)]
         use crate::virtio::{self, VirtIoDevMeta};
 
         #[cfg(net_dev = "virtio-net")]
@@ -51,6 +52,16 @@ macro_rules! for_each_drivers {
         #[cfg(block_dev = "ramdisk")]
         {
             type $drv_type = crate::drivers::RamDiskDriver;
+            $code
+        }
+        #[cfg(block_dev = "bcm2835-sdhci")]
+        {
+            type $drv_type = crate::drivers::BcmSdhciDriver;
+            $code
+        }
+        #[cfg(net_dev = "ixgbe")]
+        {
+            type $drv_type = crate::drivers::IxgbeDriver;
             $code
         }
     }};
